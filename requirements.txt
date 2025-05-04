@@ -1,0 +1,37 @@
+# Core app
+streamlit
+fastapi
+lancedb 
+numpy
+torch
+PyPDF2
+python-docx
+sentence-transformers
+google-generativeai
+google-genai
+tantivy
+# sqlite3  # Note: built-in with Python, no need to install separately
+agno
+# LangChain and extensions
+langchain
+langchain-community
+langchain-huggingface
+langchain-groq
+
+# Document processing
+lancedb
+docarray  # Required for LanceDB
+tqdm
+
+# For HuggingFace and Groq LLMs
+transformers
+huggingface-hub
+groq
+
+# Web scraping
+html2text
+beautifulsoup4
+requests
+
+# Optional (for URL loading, Streamlit enhancements)
+rich
