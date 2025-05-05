@@ -4,16 +4,36 @@ import os
 from datetime import datetime
 from rag_app.logging_config import logger
 
-# Use relative path that works regardless of where the script is run from
-DB_DIR = "chat_data"
-DB_PATH = os.path.join(DB_DIR, "chat_history.db")
+# Use environment variables for paths if available (for permission handling)
+def get_db_path():
+    """Get database path with fallback for permission issues"""
+    # Check environment variable first (set by run_app.py if permission issues)
+    if "RAG_PATH_CHAT_DATA" in os.environ:
+        DB_DIR = os.environ["RAG_PATH_CHAT_DATA"]
+    else:
+        DB_DIR = "chat_data"
+    
+    # Try to use the default path
+    DB_PATH = os.path.join(DB_DIR, "chat_history.db")
+    
+    # If we can't write to the default path, use /tmp
+    if not os.access(DB_DIR, os.W_OK):
+        tmp_dir = os.path.join("/tmp", "chat_data")
+        os.makedirs(tmp_dir, exist_ok=True)
+        DB_PATH = os.path.join(tmp_dir, "chat_history.db")
+        logger.warning(f"Using alternative database path: {DB_PATH}")
+    
+    return DB_PATH
 
 def init_db():
     """Initialize the SQLite database for chat history"""
     try:
-        # Ensure the directory for the DB exists
-        os.makedirs(DB_DIR, exist_ok=True)
-        logger.info(f"Ensuring database directory exists: {DB_DIR}")
+        # Get the database path with permission handling
+        DB_PATH = get_db_path()
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        logger.info(f"Using database path: {DB_PATH}")
 
         # Connect and initialize the table
         conn = sqlite3.connect(DB_PATH)
@@ -41,6 +61,7 @@ def save_interaction(question, answer):
         answer: The system's answer
     """
     try:
+        DB_PATH = get_db_path()
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         timestamp = datetime.now().isoformat()
@@ -64,6 +85,7 @@ def get_chat_history(limit=10):
         List of (timestamp, question, answer) tuples
     """
     try:
+        DB_PATH = get_db_path()
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
@@ -83,6 +105,7 @@ def get_chat_history(limit=10):
 def clear_history():
     """Clear all chat history from the database"""
     try:
+        DB_PATH = get_db_path()
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('DELETE FROM history')

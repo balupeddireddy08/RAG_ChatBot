@@ -17,15 +17,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      
       - name: Login to Hugging Face
         run: |
           pip install huggingface_hub
@@ -35,16 +26,46 @@ jobs:
       
       - name: Create Dockerfile for Hugging Face
         run: |
-          cat > Dockerfile.hf << EOL
-          FROM ${{ secrets.DOCKERHUB_USERNAME }}/rag-chatbot:latest
+          cat > Dockerfile << EOL
+          FROM python:3.10-slim
 
-          # Use Hugging Face's standard port
-          EXPOSE 7860
-          
+          WORKDIR /app
+
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \\
+              build-essential \\
+              curl \\
+              software-properties-common \\
+              git \\
+              && rm -rf /var/lib/apt/lists/*
+
+          # Copy requirements first for better caching
+          COPY requirements.txt .
+          RUN pip install --no-cache-dir -r requirements.txt
+
+          # Copy application code
+          COPY . .
+
+          # Create a non-root user to run the app
+          RUN useradd -m appuser && \\
+              # Create directories with appropriate permissions
+              mkdir -p /tmp/chat_data/logs /tmp/chat_data/knowledge_base && \\
+              chown -R appuser:appuser /app /tmp/chat_data
+
           # Set environment variables
+          ENV RAG_PATH_CHAT_DATA=/tmp/chat_data
+          ENV RAG_PATH_CHAT_DATA_LOGS=/tmp/chat_data/logs
+          ENV RAG_PATH_CHAT_DATA_KNOWLEDGE_BASE=/tmp/chat_data/knowledge_base
           ENV PORT=7860
-          
-          # Use startup command
+          ENV PYTHONPATH=/app
+
+          # Switch to non-root user
+          USER appuser
+
+          # Expose the port Streamlit will run on
+          EXPOSE 7860
+
+          # Run the app
           CMD ["python", "run_app.py"]
           EOL
       
@@ -68,7 +89,15 @@ jobs:
           ## Features
           - Document-based question answering
           - Chat memory and history
-          - Powered by Gemini API
+          - Powered by Google Generative AI (Gemini)
+          
+          ## Environment Variables
+          
+          To use this application, you'll need to set the following environment variable in your Hugging Face Space:
+          
+          - \`GEMINI_API_KEY\`: Your Google AI Studio API key
+          
+          You can set this in the Space Settings > Repository secrets section.
           EOL
       
       - name: Push to Hugging Face Space
@@ -89,8 +118,12 @@ jobs:
           fi
           
           # Copy necessary files
-          cp Dockerfile.hf repo/Dockerfile
-          cp README.md repo/README.md
+          cp -r rag_app repo/
+          cp run_app.py repo/
+          cp requirements.txt repo/
+          cp fix_project_structure.py repo/
+          cp Dockerfile repo/
+          cp README.md repo/
           
           # Create a simple app.py that imports run_app.py
           echo "import run_app" > repo/app.py
@@ -116,3 +149,4 @@ jobs:
         run: |
           echo "Deploying to Hugging Face Space: https://huggingface.co/spaces/${{ secrets.HF_USERNAME }}/${{ secrets.HF_SPACE_NAME }}"
           echo "Deployment triggered! It may take a few minutes to complete."
+          echo "IMPORTANT: Remember to set GEMINI_API_KEY in your Hugging Face Space settings."

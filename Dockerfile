@@ -1,28 +1,28 @@
-# Use an official Python image
 FROM python:3.10-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Set the working directory
 WORKDIR /app
 
-# Copy dependencies list and install
-COPY requirements.txt .
-
-# Install system dependencies (optional: for packages like numpy/pandas, etc.)
-RUN apt-get update && apt-get install -y \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    && pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
 COPY . .
 
-# (Optional) Expose the port you’ll use
+# Create necessary directories with correct permissions
+RUN mkdir -p /app/chat_data /app/chat_data/logs /app/chat_data/knowledge_base \
+    && chmod -R 777 /app/chat_data
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV STREAMLIT_SERVER_HEADLESS=true
+
+# Expose port
 EXPOSE 7860
 
 # Run the application

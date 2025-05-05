@@ -1,4 +1,4 @@
-# Modified rag_engine.py with improvements
+# Modified rag_engine.py with improved path handling
 import os
 import re
 import sys
@@ -10,9 +10,26 @@ import lancedb
 import google.generativeai as genai
 from rag_app.logging_config import logger
 
-# Constants for file paths and settings
-DB_DIR = "chat_data"
-KNOWLEDGE_BASE_PATH = os.path.join(DB_DIR, "knowledge_base")
+# Function to get proper paths with permission handling
+def get_kb_path():
+    """Get knowledge base path with fallback for permission issues"""
+    # Check environment variable first (set by run_app.py if permission issues)
+    if "RAG_PATH_CHAT_DATA_KNOWLEDGE_BASE" in os.environ:
+        return os.environ["RAG_PATH_CHAT_DATA_KNOWLEDGE_BASE"]
+    
+    # Default path
+    kb_path = os.path.join("chat_data", "knowledge_base")
+    
+    # If we can't write to the default path, use /tmp
+    if not os.access("chat_data", os.W_OK):
+        tmp_path = os.path.join("/tmp", "chat_data", "knowledge_base")
+        os.makedirs(tmp_path, exist_ok=True)
+        logger.warning(f"Using alternative knowledge base path: {tmp_path}")
+        return tmp_path
+        
+    return kb_path
+
+# Constants for settings
 VECTOR_TABLE_NAME = "documents"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
@@ -65,19 +82,21 @@ def text_to_chunks(text: str) -> List[str]:
 def create_vector_store(chunks: List[str]) -> bool:
     """Create a vector store from text chunks"""
     try:
-        # Ensure directory exists with absolute path
-        abs_path = os.path.abspath(KNOWLEDGE_BASE_PATH)
-        os.makedirs(abs_path, exist_ok=True)
-        logger.info(f"Knowledge base directory ensured: {abs_path}")
+        # Get knowledge base path with permission handling
+        kb_path = get_kb_path()
+        
+        # Ensure directory exists
+        os.makedirs(kb_path, exist_ok=True)
+        logger.info(f"Using knowledge base path: {kb_path}")
         
         # Check if we have a valid model
         if model is None:
             logger.error("Embedding model not available, cannot create vector store")
             return False
         
-        # Connect to LanceDB with absolute path
-        logger.info(f"Connecting to LanceDB at: {abs_path}")
-        db = lancedb.connect(abs_path)
+        # Connect to LanceDB
+        logger.info(f"Connecting to LanceDB at: {kb_path}")
+        db = lancedb.connect(kb_path)
         
         # Generate embeddings for each chunk
         logger.info(f"Generating embeddings for {len(chunks)} chunks")
@@ -173,25 +192,25 @@ def check_knowledge_base_exists() -> bool:
         Boolean indicating if knowledge base exists
     """
     try:
-        # Get absolute path for consistency
-        abs_path = os.path.abspath(KNOWLEDGE_BASE_PATH)
+        # Get knowledge base path with permission handling
+        kb_path = get_kb_path()
         
         # First check if the directory exists
-        if not os.path.exists(abs_path):
-            logger.info(f"Knowledge base directory does not exist: {abs_path}")
+        if not os.path.exists(kb_path):
+            logger.info(f"Knowledge base directory does not exist: {kb_path}")
             return False
             
         # Then check if it contains proper LanceDB files
-        db_files = os.listdir(abs_path)
+        db_files = os.listdir(kb_path)
         if not db_files:
-            logger.info(f"Knowledge base directory is empty: {abs_path}")
+            logger.info(f"Knowledge base directory is empty: {kb_path}")
             return False
         
         logger.info(f"Found files in knowledge base directory: {db_files}")
             
         # Finally try connecting to the database
         try:
-            db = lancedb.connect(abs_path)
+            db = lancedb.connect(kb_path)
             
             # Check if our table exists
             tables = db.table_names()
@@ -223,13 +242,15 @@ def retrieve_context(query: str) -> str:
         if model is None:
             logger.error("Embedding model not available, cannot retrieve context")
             return "Error: Embedding model not available"
+        
+        # Get knowledge base path with permission handling
+        kb_path = get_kb_path()
             
         # Get query embedding
         query_embedding = model.encode(query).tolist()
         
         # Connect to database
-        abs_path = os.path.abspath(KNOWLEDGE_BASE_PATH)
-        db = lancedb.connect(abs_path)
+        db = lancedb.connect(kb_path)
         
         if VECTOR_TABLE_NAME not in db.table_names():
             logger.error(f"Table {VECTOR_TABLE_NAME} not found in database")

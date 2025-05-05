@@ -4,10 +4,29 @@ import os
 import sys
 from datetime import datetime
 
+def get_log_path():
+    """Get log directory path with fallback for permission issues"""
+    # Check environment variable first (set by run_app.py if permission issues)
+    if "RAG_PATH_CHAT_DATA_LOGS" in os.environ:
+        return os.environ["RAG_PATH_CHAT_DATA_LOGS"]
+    
+    # Default path
+    log_dir = os.path.join("chat_data", "logs")
+    
+    # If we can't write to the default path, use /tmp
+    if not os.access("chat_data", os.W_OK):
+        tmp_dir = os.path.join("/tmp", "chat_data", "logs")
+        os.makedirs(tmp_dir, exist_ok=True)
+        return tmp_dir
+        
+    return log_dir
+
 def setup_logging():
     """Configure logging for the application"""
+    # Get log directory with permission handling
+    log_dir = get_log_path()
+    
     # Ensure log directory exists
-    log_dir = "chat_data/logs"
     os.makedirs(log_dir, exist_ok=True)
     
     # Create a timestamped log file
@@ -27,6 +46,7 @@ def setup_logging():
     # Create a logger for this application
     app_logger = logging.getLogger("rag_chatbot")
     app_logger.setLevel(logging.INFO)
+    app_logger.info(f"Using log directory: {log_dir}")
     
     # Suppress specific warnings from libraries we use
     logging.getLogger("torch._dynamo.utils").setLevel(logging.ERROR)

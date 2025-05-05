@@ -51,12 +51,41 @@ def check_dependencies():
         return False
 
 def ensure_directories():
-    """Ensure all required directories exist"""
-    dirs = ["chat_data", "chat_data/logs", "chat_data/knowledge_base"]
-    for directory in dirs:
-        if not os.path.exists(directory):
-            print(f"Creating directory: {directory}")
-            os.makedirs(directory, exist_ok=True)
+    """Ensure all required directories exist with proper permissions"""
+    required_dirs = {
+        "chat_data": os.environ.get("RAG_PATH_CHAT_DATA", "chat_data"),
+        "chat_data/logs": os.environ.get("RAG_PATH_CHAT_DATA_LOGS", "chat_data/logs"),
+        "chat_data/knowledge_base": os.environ.get("RAG_PATH_CHAT_DATA_KNOWLEDGE_BASE", "chat_data/knowledge_base")
+    }
+    
+    for name, path in required_dirs.items():
+        try:
+            print(f"Ensuring directory exists: {path}")
+            os.makedirs(path, exist_ok=True)
+            # Test write access
+            test_file = os.path.join(path, ".write_test")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+            print(f"✅ Directory {path} is writable")
+        except (PermissionError, OSError) as e:
+            # If we can't write to the specified path, try using /tmp
+            tmp_path = os.path.join("/tmp", name)
+            print(f"⚠️ Cannot write to {path}: {e}")
+            print(f"Using alternative path: {tmp_path}")
+            
+            try:
+                # Create the alternative directory
+                os.makedirs(tmp_path, exist_ok=True)
+                
+                # Set environment variables to use this path
+                env_var_name = f"RAG_PATH_{name.upper().replace('/', '_')}"
+                os.environ[env_var_name] = tmp_path
+                print(f"✅ Set {env_var_name}={tmp_path}")
+            except Exception as e2:
+                print(f"❌ ERROR: Failed to create alternative directory: {e2}")
+                return False
+    
     return True
 
 def check_project_structure():
@@ -94,13 +123,15 @@ def main():
         print("\n❌ Application launch aborted due to project structure issues.")
         sys.exit(1)
     
+    # Create necessary directories with permission handling
+    if not ensure_directories():
+        print("\n❌ Application launch aborted due to directory permission issues.")
+        sys.exit(1)
+    
     # Check for dependencies and API key
     if not check_dependencies() or not check_gemini_api_key():
         print("\n❌ Application launch aborted due to missing requirements.")
         sys.exit(1)
-    
-    # Ensure directories exist
-    ensure_directories()
     
     # Run Streamlit application with specific arguments to avoid PyTorch issues
     print("\n🚀 Starting RAG Chatbot...")
@@ -108,17 +139,18 @@ def main():
     
     try:
         # Use a more direct command with specific flags to avoid PyTorch issues
+        port = os.environ.get("PORT", "7860")
         command = [
             sys.executable, 
             "-m", 
             "streamlit", 
             "run", 
             "rag_app/main.py",
-            "--browser.serverAddress", "localhost",
+            "--browser.serverAddress", "0.0.0.0",  # Listen on all interfaces
             "--server.headless", "true",
             "--server.runOnSave", "false",  # Disable auto-rerun on save
             "--server.enableCORS", "false",
-            "--server.port", "7860",
+            "--server.port", port,
             "--server.enableXsrfProtection", "false",
             "--server.maxUploadSize", "200",
             "--theme.base", "light"
