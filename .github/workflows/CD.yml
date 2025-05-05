@@ -29,7 +29,9 @@ jobs:
       - name: Login to Hugging Face
         run: |
           pip install huggingface_hub
-          echo ${{ secrets.HF_TOKEN }} | huggingface-cli login --token-stdin
+          # Create HF credentials file directly
+          mkdir -p ~/.huggingface
+          echo "{ \"api_key\": \"${{ secrets.HF_TOKEN }}\" }" > ~/.huggingface/token
       
       - name: Create Dockerfile for Hugging Face
         run: |
