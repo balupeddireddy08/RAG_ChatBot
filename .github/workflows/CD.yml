@@ -11,7 +11,7 @@ on:
 
 jobs:
   deploy-to-huggingface:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout code
@@ -42,7 +42,6 @@ jobs:
           EXPOSE 7860
           
           # Set environment variables
-          ENV GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           ENV PORT=7860
           
           # Use startup command
@@ -52,6 +51,16 @@ jobs:
       - name: Create Hugging Face Space README
         run: |
           cat > README.md << EOL
+          ---
+          title: RAG Chatbot
+          emoji: 🤖
+          colorFrom: blue
+          colorTo: indigo
+          sdk: docker
+          app_port: 7860
+          pinned: false
+          ---
+          
           # RAG Chatbot
           
           This is a Retrieval-Augmented Generation (RAG) chatbot deployed on Hugging Face Spaces.
