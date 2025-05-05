@@ -3,8 +3,16 @@ name: RAG Chatbot CI
 on:
   push:
     branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
 
 jobs:
   lint:
@@ -28,20 +36,50 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   build-docker:
+
+    # Only run this job for:
+    # 1. Pushes to main/master branch (for deployment)
+    # 2. PR events but only when Dockerfile or docker-related files change
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      (github.event_name == 'pull_request' && contains(join(github.event.pull_request.changed_files.*.filename, ' '), 'Dockerfile') || contains(join(github.event.pull_request.changed_files.*.filename, ' '), 'docker-compose'))
     needs: [lint]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      # Skip docker build on PR if no Docker-related files changed
+      - name: Check for Docker-related changes in PR
+        if: github.event_name == 'pull_request'
+        id: check_changes
+        run: |
+          PR_FILES_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"
+          CHANGED_FILES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $PR_FILES_URL | jq -r '.[].filename')
+          echo "$CHANGED_FILES" > changed_files.txt
+          if grep -q -E 'Dockerfile|docker-compose\.yml|requirements\.txt' changed_files.txt; then
+            echo "::set-output name=docker_changes::true"
+          else
+            echo "::set-output name=docker_changes::false"
+          fi
+      
       - name: Set up Docker Buildx
+        if: |
+          github.event_name == 'push' || 
+          (github.event_name == 'pull_request' && steps.check_changes.outputs.docker_changes == 'true')
         uses: docker/setup-buildx-action@v2
+      
       - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
+        if: |
+          github.event_name == 'push' && 
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}      
       - name: Extract metadata for Docker
         id: meta
+        if: |
+          github.event_name == 'push' || 
+          (github.event_name == 'pull_request' && steps.check_changes.outputs.docker_changes == 'true')
         uses: docker/metadata-action@v4
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/rag-chatbot
@@ -50,6 +88,9 @@ jobs:
             type=ref,event=branch
             type=sha,format=short
       - name: Build and push Docker image
+        if: |
+          github.event_name == 'push' || 
+          (github.event_name == 'pull_request' && steps.check_changes.outputs.docker_changes == 'true')
         uses: docker/build-push-action@v4
         with:
           context: .
