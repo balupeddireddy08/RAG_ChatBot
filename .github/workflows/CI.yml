@@ -36,6 +36,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   build-docker:
+
     # Only run this job for:
     # 1. Pushes to main/master branch (for deployment)
     # 2. PR events but only when Dockerfile or docker-related files change
@@ -46,7 +47,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
       # Skip docker build on PR if no Docker-related files changed
       - name: Check for Docker-related changes in PR
         if: github.event_name == 'pull_request'
@@ -74,8 +74,7 @@ jobs:
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+          password: ${{ secrets.DOCKERHUB_TOKEN }}      
       - name: Extract metadata for Docker
         id: meta
         if: |
@@ -88,7 +87,6 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
             type=ref,event=branch
             type=sha,format=short
-      
       - name: Build and push Docker image
         if: |
           github.event_name == 'push' || 
