@@ -2,7 +2,7 @@ name: RAG Chatbot CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, rag_with_chat_history]
   pull_request:
     branches: [ main, master ]
 
