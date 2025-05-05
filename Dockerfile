@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
 COPY . .
 
 # (Optional) Expose the port you’ll use
-EXPOSE 8000
+EXPOSE 7860
 
 # Run the application
 CMD ["python", "run_app.py"]

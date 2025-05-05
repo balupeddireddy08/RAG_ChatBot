@@ -118,7 +118,7 @@ def main():
             "--server.headless", "true",
             "--server.runOnSave", "false",  # Disable auto-rerun on save
             "--server.enableCORS", "false",
-            "--server.port", "8000",
+            "--server.port", "7860",
             "--server.enableXsrfProtection", "false",
             "--server.maxUploadSize", "200",
             "--theme.base", "light"
