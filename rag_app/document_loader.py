@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 import html2text
 from rag_app.logging_config import logger
+import traceback
 
 def get_input_data(input_type):
     """Main function to get data based on selected input type"""
@@ -29,12 +30,28 @@ def get_input_data(input_type):
 
 def input_links():
     """Handle URL input and loading"""
-    with st.form("url_form"):
+    st.markdown("""
+    <div style="background-color: #f1f8e9; padding: 0.5rem; border-radius: 5px; margin-bottom: 0.8rem;">
+        <p style="margin: 0; padding: 0;">Enter one or more URLs to extract content from websites.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form("url_form", clear_on_submit=False):
         st.subheader("Load content from URLs")
-        url = st.text_input("Enter URL (must start with http:// or https://)")
-        additional_urls = st.text_area("Additional URLs (one per line)", "", height=100)
+        url = st.text_input("Enter URL", 
+                          placeholder="https://example.com",
+                          help="Must start with http:// or https://")
         
-        submit_button = st.form_submit_button("Load URLs")
+        additional_urls = st.text_area("Additional URLs (one per line)", 
+                                     "", 
+                                     height=100,
+                                     placeholder="https://example1.com\nhttps://example2.com")
+        
+        col1, col2, col3 = st.columns([2, 1, 2])
+        with col2:
+            submit_button = st.form_submit_button("Load URLs", 
+                                                use_container_width=True,
+                                                type="primary")
     
     content = ""  # Initialize content outside the conditional block
     
@@ -50,12 +67,17 @@ def input_links():
             return ""
         
         with st.spinner("Loading content from URLs..."):
+            progress_bar = st.progress(0)
             try:
                 h = html2text.HTML2Text()
                 h.ignore_links = False
                 
-                for url in valid_urls:
+                for i, url in enumerate(valid_urls):
                     try:
+                        # Update progress
+                        progress_value = (i / len(valid_urls))
+                        progress_bar.progress(progress_value, text=f"Loading {url}")
+                        
                         # First try using requests + BeautifulSoup + html2text for better control
                         response = requests.get(url, timeout=10)
                         response.raise_for_status()
@@ -83,9 +105,19 @@ def input_links():
                             st.error(f"Failed to load {url}: {str(e2)}")
                             logger.error(f"Failed to load {url}: {str(e2)}")
                 
+                # Complete the progress bar
+                progress_bar.progress(1.0, text="Loading complete")
+                
                 if content:
                     st.success(f"Successfully loaded content from {len(valid_urls)} URL(s)")
                     logger.info(f"Total content from URLs: {len(content)} characters")
+                    
+                    # Show content directly instead of using an expander
+                    st.markdown(f"**Total characters:** {len(content)}")
+                    if len(content) > 500:
+                        st.text(content[:500] + "...")
+                    else:
+                        st.text(content)
                 else:
                     st.error("No content could be extracted from the provided URLs")
                     logger.error("No content extracted from URLs")
@@ -106,44 +138,140 @@ def input_links():
 
 def input_text():
     """Handle direct text input"""
-    with st.form("text_form"):
-        text = st.text_area("Paste your text here", height=300)
-        submit_button = st.form_submit_button("Process Text")
+    st.markdown("""
+    <div style="background-color: #e3f2fd; padding: 0.5rem; border-radius: 5px; margin-bottom: 0.8rem;">
+        <p style="margin: 0; padding: 0;">Enter text directly for RAG processing.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form("text_form", clear_on_submit=False):
+        text = st.text_area("Paste your text here", 
+                          height=300, 
+                          placeholder="Enter or paste your text content here...")
+        
+        col1, col2, col3 = st.columns([2, 1, 2])
+        with col2:
+            submit_button = st.form_submit_button("Process Text", 
+                                               type="primary",
+                                               use_container_width=True)
     
     if submit_button and text:
         logger.info(f"Text input received: {len(text)} characters")
         # Store in session state to persist
         st.session_state['text_content'] = text
+        
+        # Show character count and preview
+        st.success(f"Text received: {len(text)} characters")
+        if len(text) > 100:
+            # Show preview directly instead of using an expander
+            st.markdown(f"**Preview content:**")
+            st.text(text[:500] + ("..." if len(text) > 500 else ""))
+        
         return text
     elif 'text_content' in st.session_state:
         # Return previously stored content
+        if st.session_state['text_content']:
+            # Show character count for persistent content
+            st.info(f"Stored text: {len(st.session_state['text_content'])} characters")
         return st.session_state['text_content']
     return ""
 
 def input_file(file_type):
     """Handle file uploads for different file types"""
-    file = st.file_uploader(f"Upload your {file_type.upper()} file", type=[file_type])
+    file_descriptions = {
+        "pdf": "PDF documents with text content",
+        "docx": "Microsoft Word documents",
+        "txt": "Plain text files"
+    }
+    
+    st.markdown(f"""
+    <div style="background-color: #fff3e0; padding: 0.5rem; border-radius: 5px; margin-bottom: 0.8rem;">
+        <p style="margin: 0; padding: 0;">Upload a {file_type.upper()} file to extract its content ({file_descriptions.get(file_type, '')}).</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Show file uploader with better styling
+    file = st.file_uploader(f"Upload your {file_type.upper()} file", 
+                          type=[file_type], 
+                          help=f"Select a {file_type} file from your device")
     
     content = ""  # Initialize content outside the conditional block
     
     if file is not None:
+        # Display file info
+        file_size = file.size / 1024  # Convert to KB
+        st.markdown(f"""
+        <div style="background-color: #efefef; padding: 0.5rem; border-radius: 5px; margin: 0.5rem 0;">
+            <p style="margin: 0; padding: 0;">📄 <b>{file.name}</b> ({file_size:.1f} KB)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         with st.spinner(f"Processing {file_type.upper()} file..."):
             try:
+                # Show progress bar for better UX
+                progress = st.progress(0, text="Starting file processing...")
+                
                 if file_type == "pdf":
-                    reader = PdfReader(BytesIO(file.read()))
-                    for page in reader.pages:
-                        text = page.extract_text()
-                        if text:  # Only add if text was successfully extracted
-                            content += text + "\n\n"
+                    try:
+                        # Use BytesIO buffer to prevent file reading issues
+                        file_bytes = BytesIO(file.read())
+                        reader = PdfReader(file_bytes)
+                        total_pages = len(reader.pages)
+                        
+                        if total_pages == 0:
+                            st.error(f"No pages found in PDF file: {file.name}")
+                            logger.error(f"PDF has no pages: {file.name}")
+                            return ""
+                        
+                        # Flag to track if we extracted any content
+                        extraction_success = False
+                        
+                        for i, page in enumerate(reader.pages):
+                            progress.progress((i+1)/total_pages, text=f"Processing page {i+1} of {total_pages}")
+                            text = page.extract_text()
+                            if text:  # Only add if text was successfully extracted
+                                content += text + "\n\n"
+                                extraction_success = True
+                            else:
+                                logger.warning(f"No text extracted from page {i+1} in {file.name}")
+                        
+                        # Check if we got any content at all
+                        if not extraction_success or not content.strip():
+                            st.error(f"No text could be extracted from {file.name}. The PDF might be scanned or image-based.")
+                            logger.error(f"No text extracted from any page in PDF: {file.name}")
+                            # Clear any previous PDF content to prevent using old data
+                            if f'{file_type}_content' in st.session_state:
+                                del st.session_state[f'{file_type}_content']
+                            return ""
+                    except Exception as e:
+                        st.error(f"Failed to process PDF file: {str(e)}")
+                        logger.error(f"Failed to process PDF file: {str(e)}")
+                        logger.error(traceback.format_exc())
+                        # Clear any previous PDF content to prevent using old data
+                        if f'{file_type}_content' in st.session_state:
+                            del st.session_state[f'{file_type}_content']
+                        return ""
                 elif file_type == "docx":
                     doc = Document(BytesIO(file.read()))
+                    progress.progress(0.5, text="Extracting text...")
                     content = "\n".join([p.text for p in doc.paragraphs if p.text])
+                    progress.progress(1.0, text="Processing complete!")
                 elif file_type == "txt":
+                    progress.progress(0.5, text="Reading text file...")
                     content = file.read().decode("utf-8")
+                    progress.progress(1.0, text="Processing complete!")
                 
                 if content:
                     st.success(f"Successfully processed {file.name}")
                     logger.info(f"File content extracted: {len(content)} characters")
+                    
+                    # Store file info directly instead of using an expander which causes nesting issues
+                    st.markdown(f"**Total characters:** {len(content)}")
+                    if len(content) > 500:
+                        st.text(content[:500] + "...")
+                    else:
+                        st.text(content)
+                    
                     # Store in session state
                     st.session_state[f'{file_type}_content'] = content
                 else:
@@ -159,5 +287,8 @@ def input_file(file_type):
     if content:
         return content
     elif f'{file_type}_content' in st.session_state:
+        if st.session_state[f'{file_type}_content']:
+            # Show character count for persistent content
+            st.info(f"Stored {file_type.upper()} content: {len(st.session_state[f'{file_type}_content'])} characters")
         return st.session_state[f'{file_type}_content']
     return ""

@@ -186,10 +186,10 @@ def process_documents(text: str) -> Tuple[bool, str]:
         return False, f"Error processing documents: {str(e)}"
 
 def check_knowledge_base_exists() -> bool:
-    """Check if the knowledge base exists
+    """Check if the knowledge base exists and has data
     
     Returns:
-        Boolean indicating if knowledge base exists
+        Boolean indicating if knowledge base exists and has data
     """
     try:
         # Get knowledge base path with permission handling
@@ -208,7 +208,7 @@ def check_knowledge_base_exists() -> bool:
         
         logger.info(f"Found files in knowledge base directory: {db_files}")
             
-        # Finally try connecting to the database
+        # Try connecting to the database
         try:
             db = lancedb.connect(kb_path)
             
@@ -216,9 +216,25 @@ def check_knowledge_base_exists() -> bool:
             tables = db.table_names()
             logger.info(f"Available tables in database: {tables}")
             
-            exists = VECTOR_TABLE_NAME in tables
-            logger.info(f"Knowledge base table exists: {exists}")
-            return exists
+            if VECTOR_TABLE_NAME not in tables:
+                logger.info(f"Knowledge base table {VECTOR_TABLE_NAME} does not exist")
+                return False
+                
+            # Verify the table has data
+            try:
+                table = db.open_table(VECTOR_TABLE_NAME)
+                # Check if table has at least one entry
+                count = len(table.to_pandas().head(1))
+                
+                if count == 0:
+                    logger.info(f"Knowledge base table {VECTOR_TABLE_NAME} exists but has no data")
+                    return False
+                    
+                logger.info(f"Knowledge base verified with data")
+                return True
+            except Exception as e:
+                logger.error(f"Error checking table data: {str(e)}")
+                return False
         except Exception as e:
             logger.error(f"Error connecting to LanceDB: {str(e)}")
             return False

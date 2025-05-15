@@ -75,6 +75,22 @@ def save_interaction(question, answer):
     except Exception as e:
         logger.error(f"Error saving interaction: {str(e)}")
 
+def format_timestamp(timestamp_str):
+    """Convert ISO timestamp to a human-readable format
+    
+    Args:
+        timestamp_str: ISO format timestamp string
+        
+    Returns:
+        Formatted timestamp string
+    """
+    try:
+        dt = datetime.fromisoformat(timestamp_str)
+        return dt.strftime("%b %d, %Y at %I:%M %p")  # e.g. "Jan 01, 2023 at 10:30 AM"
+    except Exception as e:
+        logger.error(f"Error formatting timestamp: {str(e)}")
+        return timestamp_str
+
 def get_chat_history(limit=10):
     """Retrieve the most recent chat interactions
     
@@ -82,7 +98,7 @@ def get_chat_history(limit=10):
         limit: Maximum number of records to retrieve
         
     Returns:
-        List of (timestamp, question, answer) tuples
+        List of (timestamp, question, answer) tuples with formatted timestamp
     """
     try:
         DB_PATH = get_db_path()
@@ -96,8 +112,12 @@ def get_chat_history(limit=10):
         ''', (limit,))
         history = cursor.fetchall()
         conn.close()
+        
+        # Format timestamps to be more readable
+        formatted_history = [(format_timestamp(ts), q, a) for ts, q, a in history]
+        
         logger.info(f"Retrieved {len(history)} history items")
-        return history
+        return formatted_history
     except Exception as e:
         logger.error(f"Error retrieving chat history: {str(e)}")
         return []
