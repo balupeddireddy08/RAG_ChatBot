@@ -5,10 +5,24 @@ import sys
 import traceback
 from typing import Tuple, List, Dict, Any
 import numpy as np
-from sentence_transformers import SentenceTransformer
-import lancedb
-import google.generativeai as genai
+import logging
 from rag_app.logging_config import logger
+
+# Configure tensor operations before imports
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+
+# Import large models in a try-except block
+try:
+    import lancedb
+    import google.generativeai as genai
+    from sentence_transformers import SentenceTransformer
+    # Flag to indicate imports succeeded
+    IMPORTS_SUCCESSFUL = True
+except ImportError as e:
+    logger.error(f"Failed to import required libraries: {str(e)}")
+    IMPORTS_SUCCESSFUL = False
 
 # Function to get proper paths with permission handling
 def get_kb_path():
@@ -40,27 +54,49 @@ if "GEMINI_API_KEY" not in os.environ:
     logger.error("GEMINI_API_KEY environment variable not set")
     raise ValueError("GEMINI_API_KEY environment variable not set. Please set it before running the application.")
 
-# Configure Gemini API
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+# Global model variable
+model = None
 
-# Initialize the embedding model with improved error handling
-try:
-    # Disable some tensor ops that might cause issues
-    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+# Initialize in a function to better handle errors
+def initialize_embedding_model():
+    global model
     
-    # Load the model with minimal settings
-    logger.info("Attempting to load SentenceTransformer model...")
-    model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
-    
-    # Test the model with a simple encoding to make sure it works
-    test_embedding = model.encode("Test sentence for embedding.")
-    logger.info(f"SentenceTransformer model loaded successfully. Embedding shape: {test_embedding.shape}")
-except Exception as e:
-    logger.error(f"Failed to load SentenceTransformer model: {str(e)}")
-    logger.error(traceback.format_exc())
-    # Set a flag to indicate we should use a simpler approach
-    model = None
-    logger.warning("Embedding model unavailable. RAG functionality will be limited.")
+    if not IMPORTS_SUCCESSFUL:
+        logger.error("Cannot initialize embedding model due to import failures")
+        return False
+        
+    try:
+        # Load the model with minimal settings
+        logger.info("Attempting to load SentenceTransformer model...")
+        
+        # Suppress stdout/stderr during model loading
+        old_stdout, old_stderr = sys.stdout, sys.stderr
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+        
+        try:
+            model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+            # Test the model with a simple encoding
+            test_embedding = model.encode("Test sentence for embedding.")
+            logger.info(f"SentenceTransformer model loaded successfully. Embedding shape: {test_embedding.shape}")
+            return True
+        finally:
+            # Restore stdout/stderr
+            sys.stdout, sys.stderr = old_stdout, old_stderr
+            
+    except Exception as e:
+        logger.error(f"Failed to load SentenceTransformer model: {str(e)}")
+        logger.error(traceback.format_exc())
+        model = None
+        logger.warning("Embedding model unavailable. RAG functionality will be limited.")
+        return False
+
+# Try to initialize the model
+initialize_embedding_model()
+
+# Configure Gemini API if imports succeeded
+if IMPORTS_SUCCESSFUL:
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 def text_to_chunks(text: str) -> List[str]:
     """Split text into overlapping chunks for processing"""
@@ -82,6 +118,11 @@ def text_to_chunks(text: str) -> List[str]:
 def create_vector_store(chunks: List[str]) -> bool:
     """Create a vector store from text chunks"""
     try:
+        # Check if imports succeeded
+        if not IMPORTS_SUCCESSFUL:
+            logger.error("Required libraries not available, cannot create vector store")
+            return False
+            
         # Get knowledge base path with permission handling
         kb_path = get_kb_path()
         
@@ -192,6 +233,11 @@ def check_knowledge_base_exists() -> bool:
         Boolean indicating if knowledge base exists and has data
     """
     try:
+        # Check if required imports succeeded
+        if not IMPORTS_SUCCESSFUL:
+            logger.error("Required libraries not available, cannot check knowledge base")
+            return False
+            
         # Get knowledge base path with permission handling
         kb_path = get_kb_path()
         
@@ -254,6 +300,12 @@ def retrieve_context(query: str) -> str:
     """
     try:
         logger.info(f"Retrieving context for query: {query}")
+        
+        # Check if required imports succeeded
+        if not IMPORTS_SUCCESSFUL:
+            logger.error("Required libraries not available, cannot retrieve context")
+            return "Error: Required libraries not available"
+            
         # Check if model is available
         if model is None:
             logger.error("Embedding model not available, cannot retrieve context")
@@ -305,6 +357,11 @@ def answer_question(query: str) -> str:
         Answer string
     """
     try:
+        # Check if required imports succeeded
+        if not IMPORTS_SUCCESSFUL:
+            logger.error("Required libraries not available, cannot answer question")
+            return "I'm sorry, but the required AI libraries are not available. Please check the application logs."
+            
         # Check if knowledge base exists
         if not check_knowledge_base_exists():
             logger.error("Knowledge base does not exist")

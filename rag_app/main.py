@@ -2,8 +2,11 @@ import streamlit as st
 import os
 import sys
 
-# Disable watchdog to prevent PyTorch class inspection errors
+# Aggressive disabling of Streamlit's file watcher to prevent PyTorch class inspection errors
 os.environ["STREAMLIT_SERVER_WATCHDOG_TIMEOUT"] = "0"
+os.environ["STREAMLIT_SERVER_ENABLE_STATIC_SERVING"] = "false"
+os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
+os.environ["STREAMLIT_SERVER_WATCH_INPUTS"] = "false" 
 os.environ["USER_AGENT"] = "RAG-Chatbot/1.0"
 
 # Import after setting environment variables

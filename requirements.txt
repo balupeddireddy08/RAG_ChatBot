@@ -1,39 +1,28 @@
-# Core app
-streamlit
-fastapi
-lancedb 
-numpy
-torch
-PyPDF2
-python-docx
-sentence-transformers
-google-generativeai
-google-genai
-tantivy
-# sqlite3  # Note: built-in with Python, no need to install separately
-agno
-# LangChain and extensions
-langchain
-langchain-community
-langchain-huggingface
-langchain-groq
+# Core dependencies (required)
+streamlit>=1.32.0
+numpy>=1.24.0
+google-generativeai>=0.3.0
 
-# Document processing
-lancedb
-docarray  # Required for LanceDB
-tqdm
+# Vector database
+lancedb>=0.5.0
+docarray>=0.21.0  # Required for LanceDB
 
-# For HuggingFace and Groq LLMs
-transformers
-huggingface-hub
-groq
+# Document processing (handled gracefully if missing)
+PyPDF2>=3.0.0; platform_system != "HuggingFace Space"
+python-docx>=1.0.0; platform_system != "HuggingFace Space"
+sentence-transformers>=2.2.0; platform_system != "HuggingFace Space"
 
-# Web scraping
-html2text
-beautifulsoup4
-requests
+# Web scraping (handled gracefully if missing)
+html2text>=2020.1.16; platform_system != "HuggingFace Space" 
+beautifulsoup4>=4.12.0; platform_system != "HuggingFace Space"
+requests>=2.30.0; platform_system != "HuggingFace Space"
 
-# Optional (for URL loading, Streamlit enhancements)
-rich
+# LangChain for URL loading (handled gracefully if missing)
+langchain-community>=0.0.10; platform_system != "HuggingFace Space"
 
-dotenv
+# Logging and environment
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# Note: In Hugging Face Spaces environment, some packages might cause conflicts
+# The app is designed to work gracefully if they're missing

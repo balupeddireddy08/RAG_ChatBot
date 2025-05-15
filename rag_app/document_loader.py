@@ -1,26 +1,56 @@
 # rag_app/document_loader.py
 import streamlit as st
-from docx import Document
-from PyPDF2 import PdfReader
-from io import BytesIO
-from langchain_community.document_loaders import WebBaseLoader
-import requests
-from bs4 import BeautifulSoup
-import html2text
-from rag_app.logging_config import logger
+import os
+import sys
 import traceback
+from io import BytesIO
+from rag_app.logging_config import logger
+
+# Import potentially problematic libraries in try-except blocks
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except ImportError:
+    logger.warning("Microsoft Word document support unavailable: docx library not found")
+    DOCX_AVAILABLE = False
+
+try:
+    from PyPDF2 import PdfReader
+    PDF_AVAILABLE = True
+except ImportError:
+    logger.warning("PDF support unavailable: PyPDF2 library not found")
+    PDF_AVAILABLE = False
+
+try:
+    from langchain_community.document_loaders import WebBaseLoader
+    import requests
+    from bs4 import BeautifulSoup
+    import html2text
+    URL_LOADERS_AVAILABLE = True
+except ImportError:
+    logger.warning("URL loading support unavailable: required libraries not found")
+    URL_LOADERS_AVAILABLE = False
 
 def get_input_data(input_type):
     """Main function to get data based on selected input type"""
     logger.info(f"Getting input data for type: {input_type}")
     
     if input_type == "Link":
+        if not URL_LOADERS_AVAILABLE:
+            st.error("URL loading functionality is not available. Required libraries not installed.")
+            return ""
         return input_links()
     elif input_type == "Text":
         return input_text()
     elif input_type == "PDF":
+        if not PDF_AVAILABLE:
+            st.error("PDF processing functionality is not available. PyPDF2 library not installed.")
+            return ""
         return input_file("pdf")
     elif input_type == "DOCX":
+        if not DOCX_AVAILABLE:
+            st.error("Word document processing functionality is not available. python-docx library not installed.")
+            return ""
         return input_file("docx")
     elif input_type == "TXT":
         return input_file("txt")
@@ -30,6 +60,10 @@ def get_input_data(input_type):
 
 def input_links():
     """Handle URL input and loading"""
+    if not URL_LOADERS_AVAILABLE:
+        st.error("URL loading functionality is not available. Required libraries not installed.")
+        return ""
+        
     st.markdown("""
     <div style="background-color: #f1f8e9; padding: 0.5rem; border-radius: 5px; margin-bottom: 0.8rem;">
         <p style="margin: 0; padding: 0;">Enter one or more URLs to extract content from websites.</p>
@@ -56,6 +90,11 @@ def input_links():
     content = ""  # Initialize content outside the conditional block
     
     if submit_button:
+        # Double-check URL_LOADERS_AVAILABLE in case it changed during runtime
+        if not URL_LOADERS_AVAILABLE:
+            st.error("URL loading functionality is not available. Required libraries not installed.")
+            return ""
+            
         urls = [url.strip()]
         if additional_urls:
             urls.extend([u.strip() for u in additional_urls.split('\n') if u.strip()])
@@ -184,6 +223,14 @@ def input_file(file_type):
         "txt": "Plain text files"
     }
     
+    # Check if required libraries are available
+    if file_type == "pdf" and not PDF_AVAILABLE:
+        st.error("PDF processing functionality is not available. PyPDF2 library not installed.")
+        return ""
+    elif file_type == "docx" and not DOCX_AVAILABLE:
+        st.error("Word document processing functionality is not available. python-docx library not installed.")
+        return ""
+    
     st.markdown(f"""
     <div style="background-color: #fff3e0; padding: 0.5rem; border-radius: 5px; margin-bottom: 0.8rem;">
         <p style="margin: 0; padding: 0;">Upload a {file_type.upper()} file to extract its content ({file_descriptions.get(file_type, '')}).</p>
@@ -212,6 +259,10 @@ def input_file(file_type):
                 progress = st.progress(0, text="Starting file processing...")
                 
                 if file_type == "pdf":
+                    if not PDF_AVAILABLE:
+                        st.error("PDF processing functionality is not available.")
+                        return ""
+                        
                     try:
                         # Use BytesIO buffer to prevent file reading issues
                         file_bytes = BytesIO(file.read())
@@ -252,6 +303,10 @@ def input_file(file_type):
                             del st.session_state[f'{file_type}_content']
                         return ""
                 elif file_type == "docx":
+                    if not DOCX_AVAILABLE:
+                        st.error("Word document processing functionality is not available.")
+                        return ""
+                        
                     doc = Document(BytesIO(file.read()))
                     progress.progress(0.5, text="Extracting text...")
                     content = "\n".join([p.text for p in doc.paragraphs if p.text])
