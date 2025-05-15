@@ -81,11 +81,10 @@ def input_links():
                                      height=100,
                                      placeholder="https://example1.com\nhttps://example2.com")
         
-        col1, col2, col3 = st.columns([2, 1, 2])
-        with col2:
-            submit_button = st.form_submit_button("Load URLs", 
-                                                use_container_width=True,
-                                                type="primary")
+        # Replace column layout with a full-width button
+        submit_button = st.form_submit_button("Load URLs", 
+                                            use_container_width=True,
+                                            type="primary")
     
     content = ""  # Initialize content outside the conditional block
     

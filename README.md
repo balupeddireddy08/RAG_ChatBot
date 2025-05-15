@@ -2,7 +2,7 @@
 
 A Retrieval-Augmented Generation (RAG) chatbot that answers questions based on your documents.
 
-![RAG Chatbot](https://i.imgur.com/JCHmOXA.png)
+![RAG Chatbot](https://huggingface.co/spaces/balapeddireddy08/multi_rag_chatbot)
 
 ## Features
 
@@ -47,14 +47,7 @@ pip install -r requirements.txt
 ```
 
 ### Step 4: Set up environment variables
-
-Run the setup wizard to configure your API key:
-
-```bash
-python setup_env.py
-```
-
-Or manually create a `.env` file in the project root with the following content:
+Manually create a `.env` file in the project root with the following content:
 
 ```
 GEMINI_API_KEY=your_gemini_api_key_here

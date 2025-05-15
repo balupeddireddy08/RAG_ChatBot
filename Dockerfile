@@ -1,10 +1,14 @@
-FROM python:3.10-slim
+FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies with security updates
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
     build-essential \
+    && apt-get autoremove -y \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
@@ -21,6 +25,10 @@ RUN mkdir -p /app/chat_data /app/chat_data/logs /app/chat_data/knowledge_base \
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV STREAMLIT_SERVER_HEADLESS=true
+
+# Run as non-root user
+RUN useradd -m appuser
+USER appuser
 
 # Expose port
 EXPOSE 7860
