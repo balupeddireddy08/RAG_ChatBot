@@ -90,14 +90,39 @@ This will start the Streamlit server, and the application will be available at `
 
 ## Project Structure
 
-- `run_app.py`: Main entry point for the application
-- `setup_env.py`: Helper script to set up environment variables
-- `rag_app/`: Core application code
-  - `main.py`: Streamlit UI implementation
-  - `rag_engine.py`: RAG functionality (document processing, vector storage, question answering)
-  - `document_loader.py`: Handles various document types
-  - `history_storage.py`: Manages chat history
-  - `logging_config.py`: Configures logging
+- `run_app.py`: Main entry point for the application. Handles environment setup, directory creation, error checking, and launches the Streamlit server.
+- `setup_env.py`: Helper script to set up environment variables and configure API keys.
+- `fix_project_structure.py`: Utility script to fix or verify the project structure if files are missing or in the wrong locations.
+- `requirements.txt`: Lists all dependencies needed for the application.
+- `Dockerfile`: Configuration for containerizing the application.
+- `rag_app/`: Core application code directory
+  - `main.py`: Streamlit UI implementation with all user interface components, forms, and interaction logic.
+  - `rag_engine.py`: Core RAG functionality including document processing, text chunking, vector embedding, database storage/retrieval, and question answering.
+  - `document_loader.py`: Handles various document types (PDF, DOCX, TXT, Text, URL) with graceful fallbacks if dependencies are missing.
+  - `history_storage.py`: Manages chat history with SQLite database for persistence across sessions.
+  - `logging_config.py`: Configures application logging with file rotation and permission handling.
+  - `__init__.py`: Package initialization file.
+- `.streamlit/`: Contains Streamlit configuration
+  - `config.toml`: Streamlit theme and behavior configuration.
+- `chat_data/`: Data directory for persistent storage
+  - `knowledge_base/`: LanceDB vector database storage location
+  - `logs/`: Application log files
+  - `chat_history.db`: SQLite database for conversation history
+- `.github/`: GitHub-related files for CI/CD and repository management
+- `.gitignore`: Specifies files to be ignored by Git
+
+## Data Flow
+
+1. **Document Processing Pipeline**:
+   - User uploads document → Text extraction → Chunking → Embedding → Vector storage
+   
+2. **Question Answering Pipeline**:
+   - User query → Query embedding → Vector similarity search → Context retrieval → LLM prompt construction → Answer generation
+
+3. **Storage Architecture**:
+   - Vector Database (LanceDB): Stores document chunks and embeddings for retrieval
+   - Relational Database (SQLite): Stores conversation history
+   - File System: Stores logs and temporary files
 
 ## Customization
 
