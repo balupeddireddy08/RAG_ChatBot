@@ -95,59 +95,32 @@ The RAG Chatbot is a web application that lets users:
 3. Receive accurate answers based on the document content
 4. Save and view conversation history
 
-### Overall Architecture
+### RAG Architecture: A High-Level View
 
-This diagram shows the main components of the application and how they work together.
-
-```mermaid
-flowchart TD
-    subgraph "User Interface (Streamlit)"
-        A[User Inputs: Files, Text, URL] --> B{RAG Chatbot Application};
-        C[User asks a question] --> B;
-        B --> D[Displays Answer & History];
-    end
-
-    subgraph "Backend Engine"
-        B -- "Process Documents" --> E[Document Processor<br>Extracts & Chunks Text];
-        E -- "Text Chunks" --> F[Embedding Model<br>Sentence Transformer];
-        F -- "Creates Vectors" --> G[Vector Database<br>LanceDB for Similarity Search];
-        
-        B -- "Process Question" --> H[Embedding Model];
-        H -- "Question Vector" --> G;
-        G -- "Finds Relevant Context" --> I[Generative AI<br>Google Gemini];
-        I -- "Generates Answer" --> B;
-        
-        B -- "Save Conversation" --> J[Chat History DB<br>SQLite];
-    end
-
-    style B fill:#e3f2fd,stroke:#333,stroke-width:2px
-    style G fill:#fff3e0,stroke:#333,stroke-width:2px
-    style I fill:#e8f5e9,stroke:#333,stroke-width:2px
-```
-
-### Core RAG Workflows
-
-The system has two main workflows.
+This diagram outlines the complete process, from processing documents to generating answers. It is divided into two core phases: **Indexing** and **Retrieval**.
 
 ```mermaid
-graph TD
-    subgraph "Workflow 1: Building the Knowledge Base (Indexing)"
-        direction LR
-        W1_A[1. User provides<br>a Document] --> W1_B[2. Text is Extracted<br>and split into chunks];
-        W1_B --> W1_C[3. Text chunks are converted<br>into numerical vectors (Embeddings)];
-        W1_C --> W1_D[4. Vectors are stored in the<br>Vector Database (LanceDB)];
+graph LR
+    subgraph "Phase 1: Knowledge Base Indexing"
+        A[User provides Document<br>(PDF, TXT, URL)] --> B(1. Text Extraction & Chunking);
+        B --> C{2. Text-to-Vector<br>Embedding Model};
+        C --> D[3. Numerical Vectors];
+        D --> E((Vector Database<br>LanceDB));
     end
 
-    subgraph "Workflow 2: Answering a Question (Querying)"
-        direction LR
-        W2_A[1. User asks<br>a Question] --> W2_B[2. The question is converted<br>into a numerical vector];
-        W2_B --> W2_C[3. The Vector Database is searched<br>for the most similar text vectors];
-        W2_C -- "Relevant text chunks" --> W2_D[4. The Question + Relevant Text<br>are sent to the Gemini AI];
-        W2_D --> W2_E[5. The AI generates<br>an answer based on the context];
+    subgraph "Phase 2: Retrieval & Generation"
+        F[User asks a Question] --> G{2. Text-to-Vector<br>Embedding Model};
+        G -- "Query Vector" --> H((Vector Database<br>LanceDB));
+        H -- "Semantic Search" --> I[3. Relevant Context];
+        I --> J[4. Prompt Augmentation];
+        F -- "Original Question" --> J;
+        J --> K{5. Generative LLM<br>(Google Gemini)};
+        K --> L[6. Generated Answer];
     end
 
-    style W1_D fill:#e3f2fd,stroke:#333,stroke-width:2px
-    style W2_E fill:#e8f5e9,stroke:#333,stroke-width:2px
+    style E fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
+    style K fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Technical Architecture
@@ -253,28 +226,3 @@ secondaryBackgroundColor = "#f8f9fa"
 textColor = "#212121"
 font = "sans serif"
 ```
-
-## Requirements
-
-- streamlit
-- sentence-transformers
-- lancedb
-- PyPDF2
-- python-docx
-- google-generativeai
-- python-dotenv
-- langchain
-- beautifulsoup4
-- html2text
-- requests
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgements
-
-- [Streamlit](https://streamlit.io/) for the web app framework
-- [Google Gemini AI](https://ai.google.dev/) for the language model
-- [SentenceTransformers](https://www.sbert.net/) for embeddings
-- [LanceDB](https://github.com/lancedb/lancedb) for vector storage 
