@@ -100,21 +100,25 @@ The RAG Chatbot is a web application that lets users:
 This diagram outlines the complete process, from processing documents to generating answers. It is divided into two core phases: **Indexing** and **Retrieval**.
 
 ```mermaid
-graph LR
-    A["User provides Document<br>(PDF, TXT, URL)"] --> B("Text Extraction<br>& Chunking");
-    B --> C{"Embedding Model"};
-    C -- "Creates Document Vectors" --> D[("Vector Database<br>LanceDB")];
+graph TD
+    subgraph "User Input"
+        A["User provides Document"]
+        B["User asks Question"]
+    end
     
-    E["User asks Question"] -- "Original Question" --> H["Prompt Augmentation"];
-    E --> C;
-    C -- "Creates Query Vector" --> D;
-    D -- "Semantic Search" --> G["Relevant Context"];
-    G -- "Context" --> H;
-    H --> I{"Generative LLM<br>(Google Gemini)"};
-    I --> J["Generated Answer"];
+    A --> C("1. Text Extraction & Chunking");
+    C --> D{"2. Embedding Model"};
+    B --> D;
+    
+    D -- "Creates Vectors" --> E((3. Vector Database));
+    E -- "Finds Context" --> F("4. Prompt Augmentation");
+    B -- "Original Question" --> F;
+    
+    F --> G{"5. Generative LLM"};
+    G --> H("6. Generated Answer");
 
-    style D fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
-    style I fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
+    style G fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Technical Architecture
