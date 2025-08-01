@@ -97,28 +97,108 @@ The RAG Chatbot is a web application that lets users:
 
 ### RAG Architecture: A High-Level View
 
-This diagram outlines the complete process, from processing documents to generating answers. It is divided into two core phases: **Indexing** and **Retrieval**.
+Here are several architectural diagrams that illustrate different aspects of the RAG chatbot:
+
+#### 1. Overall Architecture
 
 ```mermaid
 graph TD
-    subgraph "User Input"
-        A["User provides Document"]
-        B["User asks Question"]
+    U1["👤 User"] --> |"Uploads Document"| UI["Web Interface"]
+    U1 --> |"Asks Question"| UI
+    
+    subgraph "Backend"
+        UI --> |"Document"| DP["Document Processor"]
+        UI --> |"Question"| QP["Question Processor"]
+        
+        DP --> |"Text Chunks"| EM["Embedding Model"]
+        EM --> |"Document Vectors"| VDB[("Vector Database")]
+        
+        QP --> |"Query"| EM
+        EM --> |"Query Vector"| VDB
+        VDB --> |"Similar Chunks"| PC["Prompt Constructor"]
+        QP --> |"Original Question"| PC
+        
+        PC --> |"Prompt + Context"| LLM["Large Language Model"]
+        LLM --> |"Answer"| UI
     end
     
-    A --> C("1. Text Extraction & Chunking");
-    C --> D{"2. Embedding Model"};
-    B --> D;
+    UI --> |"Display Answer"| U1
     
-    D -- "Creates Vectors" --> E((3. Vector Database));
-    E -- "Finds Context" --> F("4. Prompt Augmentation");
-    B -- "Original Question" --> F;
-    
-    F --> G{"5. Generative LLM"};
-    G --> H("6. Generated Answer");
+    style VDB fill:#e3f2fd,stroke:#333,stroke-width:2px
+    style LLM fill:#e8f5e9,stroke:#333,stroke-width:2px
+    style UI fill:#fff8e1,stroke:#333,stroke-width:2px
+```
 
-    style E fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
-    style G fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
+#### 2. Document Processing Flow
+
+```mermaid
+graph LR
+    A["PDF/DOCX/TXT/URL"] --> B["Text Extraction"]
+    B --> C["Text Chunking"]
+    C --> D["Vector Embedding"]
+    D --> E["Vector Storage"]
+    
+    style E fill:#e3f2fd,stroke:#333,stroke-width:2px
+    
+    classDef process fill:#f5f5f5,stroke:#333,stroke-width:1px
+    class B,C,D process
+```
+
+#### 3. Question Answering Flow
+
+```mermaid
+graph LR
+    A["User Query"] --> B["Query Embedding"]
+    B --> C["Vector Search"]
+    C --> D["Context Retrieval"]
+    D --> E["Prompt Construction"]
+    E --> F["Answer Generation"]
+    
+    style C fill:#e3f2fd,stroke:#333,stroke-width:2px
+    style F fill:#e8f5e9,stroke:#333,stroke-width:2px
+    
+    classDef process fill:#f5f5f5,stroke:#333,stroke-width:1px
+    class B,D,E process
+```
+
+#### 4. Technical Stack
+
+```mermaid
+graph TD
+    subgraph "Frontend"
+        ST["Streamlit"]
+    end
+    
+    subgraph "Document Processing"
+        PY["PyPDF2"] 
+        DX["python-docx"]
+        HT["html2text"]
+    end
+    
+    subgraph "Vector Database"
+        LA["LanceDB"]
+    end
+    
+    subgraph "AI Components"
+        SE["SentenceTransformers"]
+        GE["Google Gemini API"]
+    end
+    
+    subgraph "Data Storage"
+        SQ["SQLite"]
+    end
+    
+    ST --> PY
+    ST --> DX
+    ST --> HT
+    ST --> SE
+    SE --> LA
+    LA --> GE
+    ST --> SQ
+    
+    style SE fill:#e3f2fd,stroke:#333,stroke-width:2px
+    style GE fill:#e8f5e9,stroke:#333,stroke-width:2px
+    style LA fill:#fff3e0,stroke:#333,stroke-width:2px
 ```
 
 ### Technical Architecture
