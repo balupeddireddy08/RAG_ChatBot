@@ -101,26 +101,20 @@ This diagram outlines the complete process, from processing documents to generat
 
 ```mermaid
 graph LR
-    subgraph "Phase 1: Knowledge Base Indexing"
-        A["User provides Document<br>(PDF, TXT, URL)"] --> B("1. Text Extraction & Chunking");
-        B --> C{"2. Text-to-Vector<br>Embedding Model"};
-        C --> D["3. Numerical Vectors"];
-        D --> E(("Vector Database<br>LanceDB"));
-    end
+    A["User provides Document<br>(PDF, TXT, URL)"] --> B("Text Extraction<br>& Chunking");
+    B --> C{"Embedding Model"};
+    C -- "Creates Document Vectors" --> D[("Vector Database<br>LanceDB")];
+    
+    E["User asks Question"] -- "Original Question" --> H["Prompt Augmentation"];
+    E --> C;
+    C -- "Creates Query Vector" --> D;
+    D -- "Semantic Search" --> G["Relevant Context"];
+    G -- "Context" --> H;
+    H --> I{"Generative LLM<br>(Google Gemini)"};
+    I --> J["Generated Answer"];
 
-    subgraph "Phase 2: Retrieval & Generation"
-        F["User asks a Question"] --> G{"2. Text-to-Vector<br>Embedding Model"};
-        G -- "Query Vector" --> H(("Vector Database<br>LanceDB"));
-        H -- "Semantic Search" --> I["3. Relevant Context"];
-        I --> J["4. Prompt Augmentation"];
-        F -- "Original Question" --> J;
-        J --> K{"5. Generative LLM<br>(Google Gemini)"};
-        K --> L["6. Generated Answer"];
-    end
-
-    style E fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
-    style H fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
-    style K fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
+    style I fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Technical Architecture
