@@ -102,20 +102,20 @@ This diagram outlines the complete process, from processing documents to generat
 ```mermaid
 graph LR
     subgraph "Phase 1: Knowledge Base Indexing"
-        A[User provides Document<br>(PDF, TXT, URL)] --> B(1. Text Extraction & Chunking);
-        B --> C{2. Text-to-Vector<br>Embedding Model};
-        C --> D[3. Numerical Vectors];
-        D --> E((Vector Database<br>LanceDB));
+        A["User provides Document<br>(PDF, TXT, URL)"] --> B("1. Text Extraction & Chunking");
+        B --> C{"2. Text-to-Vector<br>Embedding Model"};
+        C --> D["3. Numerical Vectors"];
+        D --> E(("Vector Database<br>LanceDB"));
     end
 
     subgraph "Phase 2: Retrieval & Generation"
-        F[User asks a Question] --> G{2. Text-to-Vector<br>Embedding Model};
-        G -- "Query Vector" --> H((Vector Database<br>LanceDB));
-        H -- "Semantic Search" --> I[3. Relevant Context];
-        I --> J[4. Prompt Augmentation];
+        F["User asks a Question"] --> G{"2. Text-to-Vector<br>Embedding Model"};
+        G -- "Query Vector" --> H(("Vector Database<br>LanceDB"));
+        H -- "Semantic Search" --> I["3. Relevant Context"];
+        I --> J["4. Prompt Augmentation"];
         F -- "Original Question" --> J;
-        J --> K{5. Generative LLM<br>(Google Gemini)};
-        K --> L[6. Generated Answer];
+        J --> K{"5. Generative LLM<br>(Google Gemini)"};
+        K --> L["6. Generated Answer"];
     end
 
     style E fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
