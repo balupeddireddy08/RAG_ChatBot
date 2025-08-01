@@ -95,216 +95,59 @@ The RAG Chatbot is a web application that lets users:
 3. Receive accurate answers based on the document content
 4. Save and view conversation history
 
-### Data Flow Diagram
+### Overall Architecture
+
+This diagram shows the main components of the application and how they work together.
 
 ```mermaid
 flowchart TD
-    subgraph "Data Input Layer"
-        A[User] -->|Upload Document| B[Document Loader]
-        A -->|Enter Text| B
-        A -->|Enter URL| B
-        B -->|Extract Text| C[Text Chunks]
+    subgraph "User Interface (Streamlit)"
+        A[User Inputs: Files, Text, URL] --> B{RAG Chatbot Application};
+        C[User asks a question] --> B;
+        B --> D[Displays Answer & History];
     end
-    
-    subgraph "Processing Layer"
-        C -->|Generate Embeddings| D[Vector Embeddings]
-        D -->|Store| E[LanceDB Vector Database]
-    end
-    
-    subgraph "Query Layer"
-        F[User Question] -->|Generate Embedding| G[Query Embedding]
-        G -->|Vector Search| E
-        E -->|Retrieve Similar Chunks| H[Relevant Context]
-        H -->|Context + Query| I[Prompt Construction]
-        I -->|API Request| J[Gemini AI]
-        J -->|Generate Response| K[Answer]
-    end
-    
-    subgraph "Storage Layer"
-        K -->|Save| L[Chat History SQLite DB]
-        L -->|Retrieve| M[History Display]
-    end
-    
-    K -->|Display to User| A
-```
 
-### Class Diagram
-
-```mermaid
-classDiagram
-    class DocumentLoader {
-        +get_input_data(input_type)
-        -input_links()
-        -input_text()
-        -input_file(file_type)
-    }
-    
-    class RAGEngine {
-        +process_documents(text)
-        +answer_question(query)
-        +check_knowledge_base_exists()
-        -text_to_chunks(text)
-        -create_vector_store(chunks)
-        -retrieve_context(query)
-    }
-    
-    class HistoryStorage {
-        +init_db()
-        +save_interaction(question, answer)
-        +get_chat_history(limit)
-        +clear_history()
-        -get_db_path()
-        -format_timestamp(timestamp_str)
-    }
-    
-    class StreamlitUI {
-        +handle_query_submit()
-        +clear_chat_history()
-        +toggle_history()
-        -initialize_knowledge_base_state()
-    }
-    
-    class RunApp {
-        +main()
-        -check_gemini_api_key()
-        -ensure_directories()
-        -check_project_structure()
-    }
-    
-    StreamlitUI --> DocumentLoader : uses
-    StreamlitUI --> RAGEngine : uses
-    StreamlitUI --> HistoryStorage : uses
-    RunApp --> StreamlitUI : launches
-    DocumentLoader ..> RAGEngine : provides text to
-    RAGEngine --> HistoryStorage : stores Q&A pairs
-```
-
-### Sequence Diagram
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Streamlit UI
-    participant DocLoader as Document Loader
-    participant RAG as RAG Engine
-    participant Vector as Vector Database (LanceDB)
-    participant LLM as Gemini AI
-    participant History as Chat History (SQLite)
-    
-    %% Document Processing Flow
-    User->>UI: Upload Document/Text/URL
-    UI->>DocLoader: get_input_data(input_type)
-    DocLoader->>UI: Return extracted text
-    User->>UI: Click "Process Documents"
-    UI->>RAG: process_documents(text)
-    RAG->>RAG: text_to_chunks(text)
-    RAG->>RAG: Create embeddings
-    RAG->>Vector: Store embeddings
-    Vector-->>RAG: Confirmation
-    RAG-->>UI: Knowledge base ready
-    UI-->>User: Show success message
-    
-    %% Question Answering Flow
-    User->>UI: Ask question
-    UI->>RAG: answer_question(query)
-    RAG->>RAG: Generate query embedding
-    RAG->>Vector: Search similar chunks
-    Vector-->>RAG: Return relevant chunks
-    RAG->>RAG: Construct prompt with context
-    RAG->>LLM: Generate content with prompt
-    LLM-->>RAG: Return answer
-    RAG-->>UI: Return formatted answer
-    UI->>History: save_interaction(question, answer)
-    UI-->>User: Display answer
-    
-    %% History Retrieval Flow
-    User->>UI: Toggle history
-    UI->>History: get_chat_history(limit)
-    History-->>UI: Return past conversations
-    UI-->>User: Display conversation history
-```
-
-### Project Structure
-
-```mermaid
-flowchart LR
-    subgraph "Project Structure"
-        direction TB
-        run_app["run_app.py<br>Main entry point"]
-        setup_env["setup_env.py<br>Environment setup"]
-        fix["fix_project_structure.py<br>Utility script"]
-        requirements["requirements.txt<br>Dependencies"]
-        dockerfile["Dockerfile<br>Container config"]
+    subgraph "Backend Engine"
+        B -- "Process Documents" --> E[Document Processor<br>Extracts & Chunks Text];
+        E -- "Text Chunks" --> F[Embedding Model<br>Sentence Transformer];
+        F -- "Creates Vectors" --> G[Vector Database<br>LanceDB for Similarity Search];
         
-        subgraph "rag_app"
-            direction TB
-            main["main.py<br>Streamlit UI"]
-            rag_engine["rag_engine.py<br>Core RAG functionality"]
-            document["document_loader.py<br>Document handling"]
-            history["history_storage.py<br>Chat history DB"]
-            logging["logging_config.py<br>Logging setup"]
-            init["__init__.py<br>Package init"]
-        end
+        B -- "Process Question" --> H[Embedding Model];
+        H -- "Question Vector" --> G;
+        G -- "Finds Relevant Context" --> I[Generative AI<br>Google Gemini];
+        I -- "Generates Answer" --> B;
         
-        run_app --> main
-        main --> rag_engine
-        main --> document
-        main --> history
-        main --> logging
+        B -- "Save Conversation" --> J[Chat History DB<br>SQLite];
     end
+
+    style B fill:#e3f2fd,stroke:#333,stroke-width:2px
+    style G fill:#fff3e0,stroke:#333,stroke-width:2px
+    style I fill:#e8f5e9,stroke:#333,stroke-width:2px
 ```
 
-### System Components
+### Core RAG Workflows
 
-```mermaid
-flowchart TD
-    subgraph "System Components"
-        direction TB
-        ui["Streamlit UI<br>User interface and interaction"]
-        doc["Document Loaders<br>PDF, DOCX, TXT, URL parsing"]
-        embed["Sentence Transformer<br>Text to vector embeddings"]
-        db["LanceDB<br>Vector database for semantic search"]
-        llm["Google Gemini AI<br>Large language model"]
-        history["SQLite<br>Chat history storage"]
-        
-        ui --- doc
-        ui --- history
-        doc --> embed
-        embed --> db
-        ui --> embed
-        embed --- db
-        db --> llm
-        ui --> llm
-        llm --> ui
-    end
-```
-
-### User Flows
+The system has two main workflows.
 
 ```mermaid
 graph TD
-    subgraph "Key User Flows"
+    subgraph "Workflow 1: Building the Knowledge Base (Indexing)"
         direction LR
-        
-        subgraph "Document Processing"
-            A1["Select Document Type<br>(PDF/DOCX/TXT/Text/URL)"] --> A2["Upload/Enter Content"]
-            A2 --> A3["Process Documents"]
-            A3 --> A4["Knowledge Base Created"]
-        end
-        
-        subgraph "Question Answering"
-            B1["Enter Question"] --> B2["System Retrieves<br>Relevant Context"]
-            B2 --> B3["Context + Question<br>Sent to Gemini AI"]
-            B3 --> B4["Display Answer"]
-        end
-        
-        subgraph "History Management"
-            C1["View History"] --> C2["See Past Questions<br>and Answers"]
-            C1 --> C3["Clear History"]
-        end
-        
-        A4 --> B1
+        W1_A[1. User provides<br>a Document] --> W1_B[2. Text is Extracted<br>and split into chunks];
+        W1_B --> W1_C[3. Text chunks are converted<br>into numerical vectors (Embeddings)];
+        W1_C --> W1_D[4. Vectors are stored in the<br>Vector Database (LanceDB)];
     end
+
+    subgraph "Workflow 2: Answering a Question (Querying)"
+        direction LR
+        W2_A[1. User asks<br>a Question] --> W2_B[2. The question is converted<br>into a numerical vector];
+        W2_B --> W2_C[3. The Vector Database is searched<br>for the most similar text vectors];
+        W2_C -- "Relevant text chunks" --> W2_D[4. The Question + Relevant Text<br>are sent to the Gemini AI];
+        W2_D --> W2_E[5. The AI generates<br>an answer based on the context];
+    end
+
+    style W1_D fill:#e3f2fd,stroke:#333,stroke-width:2px
+    style W2_E fill:#e8f5e9,stroke:#333,stroke-width:2px
 ```
 
 ### Technical Architecture
