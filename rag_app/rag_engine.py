@@ -8,6 +8,7 @@ import numpy as np
 import logging
 from rag_app.logging_config import logger
 
+
 # Configure tensor operations before imports
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -75,7 +76,8 @@ def initialize_embedding_model():
         sys.stderr = open(os.devnull, 'w')
         
         try:
-            model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+            token = os.environ.get("HUGGING_FACE_HUB_TOKEN")
+            model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu', use_auth_token=token)
             # Test the model with a simple encoding
             test_embedding = model.encode("Test sentence for embedding.")
             logger.info(f"SentenceTransformer model loaded successfully. Embedding shape: {test_embedding.shape}")
@@ -154,7 +156,7 @@ def create_vector_store(chunks: List[str]) -> bool:
             except Exception as e:
                 logger.error(f"Error encoding chunk {i}: {str(e)}")
                 # Use a zero vector as fallback (with correct dimensions)
-                embeddings.append(np.zeros(384))  # MiniLM-L6 uses 384 dimensions
+                embeddings.append(np.zeros(384))  # all-MiniLM-L6-v2 uses 384 dimensions
         
         # Create data for the table
         data = []
